@@ -54,7 +54,7 @@ A macro `GerarContratos()` implementa as seguintes funcionalidades:
 
 7. **Exclusão de Campo**: Se o campo "Cidade" estiver vazio, não exibe "N/D" no contrato.
 
-## Código da Macro
+## Código da Macro com Geração de Arquivos que contém CPF
 
 ```vba
 Sub GerarContratos()
@@ -154,6 +154,116 @@ Sub GerarContratos()
             ' Fecha o novo workbook sem salvar alterações
             wbNovo.Close SaveChanges:=False
         End If
+    Next i
+
+    ' Fecha os arquivos originais
+    wbDados.Close SaveChanges:=False
+    wbModelo.Close SaveChanges:=False
+
+    MsgBox "Contratos gerados com sucesso!", vbInformation
+End Sub
+
+## Geração de arquivos gerais (Independente se tem ou não CPF na planilha)
+
+```vba
+
+Sub GerarContratos()
+    Dim wbDados As Workbook
+    Dim wbModelo As Workbook
+    Dim wbNovo As Workbook
+    Dim wsDados As Worksheet
+    Dim wsModelo As Worksheet
+    Dim i As Integer
+    Dim clienteCNPJ As String
+    Dim clienteTelefone As String
+    Dim clienteEmail As String
+    Dim clienteEndereco As String
+    Dim clienteBairro As String
+    Dim clienteCEP As String
+    Dim clienteCidade As String
+    Dim clienteEstado As String
+    Dim clienteRazaoSocial As String
+    Dim clienteData As String
+    Dim outputPath As String
+    Dim fileName As String
+    Dim pdfFileName As String
+
+    ' Abra os arquivos de dados e modelo
+    Set wbDados = Workbooks.Open(ThisWorkbook.Path & "\Dados.xlsx")
+    Set wbModelo = Workbooks.Open(ThisWorkbook.Path & "\Modelo.xlsx")
+
+    ' Defina as planilhas
+    Set wsDados = wbDados.Sheets(1) ' Primeira aba de Dados
+    Set wsModelo = wbModelo.Sheets(1) ' Primeira aba do Modelo
+
+    ' Caminho para salvar os contratos
+    outputPath = ThisWorkbook.Path & "\Contratos\"
+    If Dir(outputPath, vbDirectory) = "" Then MkDir outputPath
+
+    ' Loop através dos clientes
+    For i = 2 To wsDados.Cells(wsDados.Rows.Count, 1).End(xlUp).Row
+        clienteCNPJ = wsDados.Cells(i, 1).Value
+        clienteTelefone = wsDados.Cells(i, 6).Value
+        clienteEmail = wsDados.Cells(i, 7).Value
+        clienteEndereco = wsDados.Cells(i, 9).Value
+        clienteBairro = wsDados.Cells(i, 3).Value
+        clienteCEP = wsDados.Cells(i, 8).Value
+        clienteCidade = wsDados.Cells(i, 4).Value
+        clienteEstado = wsDados.Cells(i, 5).Value
+        clienteRazaoSocial = wsDados.Cells(i, 2).Value
+        clienteData = wsDados.Cells(i, 10).Text
+
+        ' Limpa CNPJ e Telefone
+        fileName = Replace(clienteCNPJ, ".", "")
+        fileName = Replace(fileName, "-", "")
+        fileName = Replace(fileName, "/", "")
+        
+        clienteTelefone = Replace(clienteTelefone, "-", "")
+        clienteTelefone = Replace(clienteTelefone, " ", "")
+        
+        ' Cria uma nova cópia do modelo
+        wsModelo.Copy
+        Set wbNovo = ActiveWorkbook ' A nova planilha copiada será o workbook ativo
+
+        ' Substitui os placeholders no novo workbook
+        With wbNovo.Sheets(1)
+            .Cells.Replace "[CNPJ]", clienteCNPJ
+            .Cells.Replace "[TELEFONE]", clienteTelefone
+            .Cells.Replace "[EMAIL]", clienteEmail
+            .Cells.Replace "[ENDERECO]", clienteEndereco
+            .Cells.Replace "[BAIRRO]", clienteBairro
+            .Cells.Replace "[CEP]", clienteCEP
+            ' Substituir Cidade apenas se não for "N/D"
+            If clienteCidade <> "N/D" Then
+                .Cells.Replace "[CIDADE]", clienteCidade
+            Else
+                .Cells.Replace "[CIDADE]", ""
+            End If
+            .Cells.Replace "[ESTADO]", clienteEstado
+            .Cells.Replace "[RAZAO_SOCIAL]", clienteRazaoSocial
+            .Cells.Replace "[DATA]", Format(clienteData, "dd/mm/yyyy")
+        End With
+
+        ' Define o nome do arquivo PDF
+        If fileName = "" Then
+            fileName = "Contrato_Cliente_" & i ' Nome alternativo se CNPJ estiver vazio
+        End If
+        pdfFileName = outputPath & "Contrato_" & fileName & ".pdf"
+
+        ' Verifica se o arquivo já existe e modifica o nome, se necessário
+        Dim fileCounter As Integer
+        fileCounter = 1
+        While Dir(pdfFileName) <> ""
+            pdfFileName = outputPath & "Contrato_" & fileName & "_" & fileCounter & ".pdf"
+            fileCounter = fileCounter + 1
+        Wend
+
+        ' Exporta o workbook como PDF
+        wbNovo.ExportAsFixedFormat Type:=xlTypePDF, fileName:=pdfFileName, Quality:=xlQualityStandard, _
+            IncludeDocProperties:=True, IgnorePrintAreas:=False, OpenAfterPublish:=False
+        
+        ' Fecha o novo workbook sem salvar alterações
+        wbNovo.Close SaveChanges:=False
     Next i
 
     ' Fecha os arquivos originais
