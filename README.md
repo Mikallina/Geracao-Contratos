@@ -162,7 +162,7 @@ Sub GerarContratos()
 
     MsgBox "Contratos gerados com sucesso!", vbInformation
 End Sub
-
+```
 ## Geração de arquivos gerais (Independente se tem ou não CPF na planilha)
 
 ```vba
